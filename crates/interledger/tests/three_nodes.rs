@@ -253,7 +253,7 @@ fn three_nodes() {
     runtime
         .block_on(
             // Wait for the nodes to spin up
-            delay(100)
+            delay(500)
                 .map_err(|_| panic!("Something strange happened"))
                 .and_then(move |_| {
                     let client = reqwest::r#async::Client::new();
