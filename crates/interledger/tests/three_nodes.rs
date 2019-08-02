@@ -120,7 +120,8 @@ fn three_nodes() {
     };
     let node2_clone = node2.clone();
     runtime.spawn(
-            node2_clone.insert_account(AccountDetails {
+        node2_clone
+            .insert_account(AccountDetails {
                 ilp_address: Address::from_str("example.one").unwrap(),
                 asset_code: "XYZ".to_string(),
                 asset_scale: 9,
@@ -142,7 +143,7 @@ fn three_nodes() {
                 settlement_engine_url: None,
                 settlement_engine_asset_scale: None,
             })
-            .and_then(move |_|
+            .and_then(move |_| {
                 node2_clone.insert_account(AccountDetails {
                     ilp_address: Address::from_str("example.two.three").unwrap(),
                     asset_code: "ABC".to_string(),
@@ -165,22 +166,22 @@ fn three_nodes() {
                     settlement_engine_url: None,
                     settlement_engine_asset_scale: None,
                 })
-            )
-        .and_then(move |_| node2.serve())
-        .and_then(move |_| {
-            let client = reqwest::r#async::Client::new();
-            client
-                .put(&format!("http://localhost:{}/rates", node2_http))
-                .header("Authorization", "Bearer admin")
-                .json(&json!({"ABC": 2, "XYZ": 1}))
-                .send()
-                .map_err(|err| panic!(err))
-                .and_then(|res| {
-                    res.error_for_status()
-                        .expect("Error setting exchange rates");
-                    Ok(())
-                })
-        })
+            })
+            .and_then(move |_| node2.serve())
+            .and_then(move |_| {
+                let client = reqwest::r#async::Client::new();
+                client
+                    .put(&format!("http://localhost:{}/rates", node2_http))
+                    .header("Authorization", "Bearer admin")
+                    .json(&json!({"ABC": 2, "XYZ": 1}))
+                    .send()
+                    .map_err(|err| panic!(err))
+                    .and_then(|res| {
+                        res.error_for_status()
+                            .expect("Error setting exchange rates");
+                        Ok(())
+                    })
+            }),
     );
 
     let node3 = InterledgerNode {
@@ -198,7 +199,8 @@ fn three_nodes() {
     runtime.spawn(
         // Wait a bit to make sure the other node's BTP server is listening
         delay(50).map_err(|err| panic!(err)).and_then(move |_| {
-                node3_clone.insert_account(AccountDetails {
+            node3_clone
+                .insert_account(AccountDetails {
                     ilp_address: Address::from_str("example.two.three").unwrap(),
                     asset_code: "ABC".to_string(),
                     asset_scale: 6,
@@ -219,7 +221,8 @@ fn three_nodes() {
                     amount_per_minute_limit: None,
                     settlement_engine_url: None,
                     settlement_engine_asset_scale: None,
-                }).and_then(move |_|
+                })
+                .and_then(move |_| {
                     node3_clone.insert_account(AccountDetails {
                         ilp_address: Address::from_str("example.two").unwrap(),
                         asset_code: "ABC".to_string(),
@@ -242,8 +245,8 @@ fn three_nodes() {
                         settlement_engine_url: None,
                         settlement_engine_asset_scale: None,
                     })
-            )
-            .and_then(move |_| node3.serve())
+                })
+                .and_then(move |_| node3.serve())
         }),
     );
 
