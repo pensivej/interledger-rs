@@ -247,10 +247,12 @@ fn three_nodes() {
         }),
     );
 
+    std::thread::sleep(std::time::Duration::from_millis(2000));
+
     runtime
         .block_on(
             // Wait for the nodes to spin up
-            delay(500)
+            delay(50)
                 .map_err(|_| panic!("Something strange happened"))
                 .and_then(move |_| {
                     let client = reqwest::r#async::Client::new();
