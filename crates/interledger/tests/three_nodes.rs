@@ -150,7 +150,7 @@ fn three_nodes() {
                     btp_incoming_token: Some("three".to_string()),
                     btp_uri: None,
                     http_endpoint: None,
-                    http_incoming_token: None,
+                    http_incoming_token: Some("three".to_string()),
                     http_outgoing_token: None,
                     max_packet_amount: u64::max_value(),
                     min_balance: Some(-1_000_000_000),
@@ -247,12 +247,10 @@ fn three_nodes() {
         }),
     );
 
-    std::thread::sleep(std::time::Duration::from_millis(2000));
-
     runtime
         .block_on(
             // Wait for the nodes to spin up
-            delay(50)
+            delay(100)
                 .map_err(|_| panic!("Something strange happened"))
                 .and_then(move |_| {
                     let client = reqwest::r#async::Client::new();
@@ -313,9 +311,21 @@ fn three_nodes() {
                             err
                         })
                         .and_then(move |_| {
-                            get_balance(0, node1_http, "default account holder").and_then(move |ret| {
+                            get_balance(0, node1_http, "default account holder")
+                            .and_then(move |ret| {
                                 let ret = str::from_utf8(&ret).unwrap();
                                 assert_eq!(ret, "{\"balance\":\"-1000\"}");
+                                Ok(())
+                            }).and_then(move |_| {
+                                // Node 2 updates Node 3's balance properly.
+                                get_balance(1, node2_http, "three").and_then(move |ret| {
+                                    let ret = str::from_utf8(&ret).unwrap();
+                                    assert_eq!(ret, "{\"balance\":\"2\"}");
+                                    Ok(())
+                                })
+                            }).and_then(move |_| {
+                                // Node 3's balance is properly adjusted after
+                                // it's received the message from node 2
                                 get_balance(0, node3_http, "default account holder").and_then(move |ret| {
                                     let ret = str::from_utf8(&ret).unwrap();
                                     assert_eq!(ret, "{\"balance\":\"2\"}");
@@ -332,6 +342,17 @@ fn three_nodes() {
                             get_balance(0, node1_http, "default account holder").and_then(move |ret| {
                                 let ret = str::from_utf8(&ret).unwrap();
                                 assert_eq!(ret, "{\"balance\":\"499000\"}");
+                                Ok(())
+                            }).and_then(move |_| {
+                                // Node 2 updates Node 3's balance properly.
+                                get_balance(1, node2_http, "three").and_then(move |ret| {
+                                    let ret = str::from_utf8(&ret).unwrap();
+                                    assert_eq!(ret, "{\"balance\":\"-998\"}");
+                                    Ok(())
+                                })
+                            }).and_then(move |_| {
+                                // Node 3's balance is properly adjusted after
+                                // it's received the message from node 2
                                 get_balance(0, node3_http, "default account holder").and_then(move |ret| {
                                     let ret = str::from_utf8(&ret).unwrap();
                                     assert_eq!(ret, "{\"balance\":\"-998\"}");
