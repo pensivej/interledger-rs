@@ -1,7 +1,7 @@
 #![recursion_limit = "128"]
 
 use env_logger;
-use futures::{future::join_all, Future, Stream};
+use futures::{Future, Stream};
 use interledger::{
     cli,
     node::{AccountDetails, InterledgerNode},
@@ -118,9 +118,9 @@ fn three_nodes() {
         secret_seed: cli::random_secret(),
         route_broadcast_interval: Some(200),
     };
+    let node2_clone = node2.clone();
     runtime.spawn(
-        join_all(vec![
-            node2.insert_account(AccountDetails {
+            node2_clone.insert_account(AccountDetails {
                 ilp_address: Address::from_str("example.one").unwrap(),
                 asset_code: "XYZ".to_string(),
                 asset_scale: 9,
@@ -141,30 +141,31 @@ fn three_nodes() {
                 amount_per_minute_limit: None,
                 settlement_engine_url: None,
                 settlement_engine_asset_scale: None,
-            }),
-            node2.insert_account(AccountDetails {
-                ilp_address: Address::from_str("example.two.three").unwrap(),
-                asset_code: "ABC".to_string(),
-                asset_scale: 6,
-                btp_incoming_token: Some("three".to_string()),
-                btp_uri: None,
-                http_endpoint: None,
-                http_incoming_token: None,
-                http_outgoing_token: None,
-                max_packet_amount: u64::max_value(),
-                min_balance: Some(-1_000_000_000),
-                settle_threshold: None,
-                settle_to: None,
-                send_routes: true,
-                receive_routes: false,
-                routing_relation: Some("Child".to_string()),
-                round_trip_time: None,
-                packets_per_minute_limit: None,
-                amount_per_minute_limit: None,
-                settlement_engine_url: None,
-                settlement_engine_asset_scale: None,
-            }),
-        ])
+            })
+            .and_then(move |_|
+                node2_clone.insert_account(AccountDetails {
+                    ilp_address: Address::from_str("example.two.three").unwrap(),
+                    asset_code: "ABC".to_string(),
+                    asset_scale: 6,
+                    btp_incoming_token: Some("three".to_string()),
+                    btp_uri: None,
+                    http_endpoint: None,
+                    http_incoming_token: None,
+                    http_outgoing_token: None,
+                    max_packet_amount: u64::max_value(),
+                    min_balance: Some(-1_000_000_000),
+                    settle_threshold: None,
+                    settle_to: None,
+                    send_routes: true,
+                    receive_routes: false,
+                    routing_relation: Some("Child".to_string()),
+                    round_trip_time: None,
+                    packets_per_minute_limit: None,
+                    amount_per_minute_limit: None,
+                    settlement_engine_url: None,
+                    settlement_engine_asset_scale: None,
+                })
+            )
         .and_then(move |_| node2.serve())
         .and_then(move |_| {
             let client = reqwest::r#async::Client::new();
@@ -179,7 +180,7 @@ fn three_nodes() {
                         .expect("Error setting exchange rates");
                     Ok(())
                 })
-        }),
+        })
     );
 
     let node3 = InterledgerNode {
@@ -197,7 +198,6 @@ fn three_nodes() {
     runtime.spawn(
         // Wait a bit to make sure the other node's BTP server is listening
         delay(50).map_err(|err| panic!(err)).and_then(move |_| {
-            join_all(vec![
                 node3_clone.insert_account(AccountDetails {
                     ilp_address: Address::from_str("example.two.three").unwrap(),
                     asset_code: "ABC".to_string(),
@@ -219,30 +219,30 @@ fn three_nodes() {
                     amount_per_minute_limit: None,
                     settlement_engine_url: None,
                     settlement_engine_asset_scale: None,
-                }),
-                node3_clone.insert_account(AccountDetails {
-                    ilp_address: Address::from_str("example.two").unwrap(),
-                    asset_code: "ABC".to_string(),
-                    asset_scale: 6,
-                    btp_incoming_token: None,
-                    btp_uri: Some(format!("btp+ws://:three@localhost:{}", node2_btp)),
-                    http_endpoint: None,
-                    http_incoming_token: None,
-                    http_outgoing_token: None,
-                    max_packet_amount: u64::max_value(),
-                    min_balance: Some(-1_000_000_000),
-                    settle_threshold: None,
-                    settle_to: None,
-                    send_routes: false,
-                    receive_routes: true,
-                    routing_relation: Some("Parent".to_string()),
-                    round_trip_time: None,
-                    packets_per_minute_limit: None,
-                    amount_per_minute_limit: None,
-                    settlement_engine_url: None,
-                    settlement_engine_asset_scale: None,
-                }),
-            ])
+                }).and_then(move |_|
+                    node3_clone.insert_account(AccountDetails {
+                        ilp_address: Address::from_str("example.two").unwrap(),
+                        asset_code: "ABC".to_string(),
+                        asset_scale: 6,
+                        btp_incoming_token: None,
+                        btp_uri: Some(format!("btp+ws://:three@localhost:{}", node2_btp)),
+                        http_endpoint: None,
+                        http_incoming_token: None,
+                        http_outgoing_token: None,
+                        max_packet_amount: u64::max_value(),
+                        min_balance: Some(-1_000_000_000),
+                        settle_threshold: None,
+                        settle_to: None,
+                        send_routes: false,
+                        receive_routes: true,
+                        routing_relation: Some("Parent".to_string()),
+                        round_trip_time: None,
+                        packets_per_minute_limit: None,
+                        amount_per_minute_limit: None,
+                        settlement_engine_url: None,
+                        settlement_engine_asset_scale: None,
+                    })
+            )
             .and_then(move |_| node3.serve())
         }),
     );
