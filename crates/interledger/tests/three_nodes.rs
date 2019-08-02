@@ -284,16 +284,59 @@ fn three_nodes() {
                         Ok(())
                     });
 
+                    let get_balance = |account_id, node_port, admin_token| {
+                        let client = reqwest::r#async::Client::new();
+                        client
+                            .get(&format!(
+                                "http://localhost:{}/accounts/{}/balance",
+                                node_port, account_id
+                            ))
+                            .header("Authorization", format!("Bearer {}", admin_token))
+                            .send()
+                            .map_err(|err| {
+                                eprintln!("Error getting account data: {:?}", err);
+                                err
+                            })
+                            .and_then(|res| res.error_for_status())
+                            .and_then(|res| res.into_body().concat2())
+                    };
+
+                    // Node 1 sends 1000 to Node 3. However, Node1's scale is 9,
+                    // while Node 3's scale is 6. This means that Node 3 will
+                    // see 1000x less. In addition, the conversion rate is 2:1
+                    // for 3's asset, so he will receive 2 total.
                     send_1_to_3
                         .map_err(|err| {
                             eprintln!("Error sending from node 1 to node 3: {:?}", err);
                             err
                         })
-                        .and_then(|_| send_3_to_1
+                        .and_then(move |_| {
+                            get_balance(0, node1_http, "default account holder").and_then(move |ret| {
+                                let ret = str::from_utf8(&ret).unwrap();
+                                assert_eq!(ret, "{\"balance\":\"-1000\"}");
+                                get_balance(0, node3_http, "default account holder").and_then(move |ret| {
+                                    let ret = str::from_utf8(&ret).unwrap();
+                                    assert_eq!(ret, "{\"balance\":\"2\"}");
+                                    Ok(())
+                                })
+                            })
+                        })
+                        .and_then(move |_| send_3_to_1
                         .map_err(|err| {
                             eprintln!("Error sending from node 3 to node 1: {:?}", err);
                             err
                         }))
+                        .and_then(move |_| {
+                            get_balance(0, node1_http, "default account holder").and_then(move |ret| {
+                                let ret = str::from_utf8(&ret).unwrap();
+                                assert_eq!(ret, "{\"balance\":\"499000\"}");
+                                get_balance(0, node3_http, "default account holder").and_then(move |ret| {
+                                    let ret = str::from_utf8(&ret).unwrap();
+                                    assert_eq!(ret, "{\"balance\":\"-998\"}");
+                                    Ok(())
+                                })
+                            })
+                        })
                 }),
         )
         .unwrap();
